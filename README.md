@@ -2,11 +2,7 @@
 
 Geometria Pura, Fisica dei Buchi Neri e Limiti dei Computer Quantistici.
 
-* **Saggio PDF:** [DOI: 10.5281/zenodo.22257560](https://doi.org)
-* **Software Core:** [DOI: 10.5281/zenodo.22255135](https://doi.org)
 
-
----
 
 ## 🚀 Highlight del Progetto
 
