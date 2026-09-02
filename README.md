@@ -2,8 +2,8 @@
 
 Geometria Pura, Fisica dei Buchi Neri e Limiti dei Computer Quantistici.
 
-https://zenodo.org/records/22257560
-https://zenodo.org/records/22255135
+<a https://zenodo.org/records/22257560 ></a>
+<a  https://zenodo.org/records/22255135 ></a>
 
 ## 🚀 Highlight del Progetto
 
