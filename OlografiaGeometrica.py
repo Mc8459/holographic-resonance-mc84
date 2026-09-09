@@ -1,13 +1,20 @@
 """
-Modulo di Simulazione Geometrico-Computazionale.
-Sviluppato per lo studio delle singolarità nella progressione Area/Somma.
-Autore d'Invenzione: Mc84 (Mario Cera)
-Codice conforme alle specifiche di stile PEP 8 e ottimizzato per Ruff.
+LABORATORIO DI ANALISI DEGLI ERRORI DI ARROTONDAMENTO E DERIVA COMPUTAZIONALE v3.0.0
+Studio delle singolarità numeriche nella progressione geometrica Area/Perimetro.
+Confronto analitico: Standard Hardware IEEE 754 vs Precisione Arbitraria (Decimal).
+Sviluppo e Firma Scientifica: Mc84 (Mario Cera) - Anno 2026
 """
 
 import os
+from decimal import Decimal, getcontext
 
 import matplotlib.pyplot as plt
+
+# =====================================================================
+# CONFIGURAZIONE STRUMENTI COMPUTAZIONALI E REQUISITI DI PRECISIONE
+# =====================================================================
+# Impostazione della precisione assoluta a 100 cifre per il sistema di riferimento
+getcontext().prec = 100
 
 
 def pulisci_schermo():
@@ -18,7 +25,7 @@ def pulisci_schermo():
 def richiedi_input_numerico(messaggio, consente_avviso_passi=False):
     """
     Richiede un input all'utente garantendo che sia un numero valido.
-    Se consente_avviso_passi è True, avverte l'utente sui rischi dei grandi numeri.
+    Previene l'inserimento di valori negativi o nulli distruttivi per l'algoritmo.
     """
     while True:
         try:
@@ -27,9 +34,11 @@ def richiedi_input_numerico(messaggio, consente_avviso_passi=False):
                 print("[Errore] Inserire un valore maggiore di zero.")
                 continue
 
-            if consente_avviso_passi and valore > 25:
+            if consente_avviso_passi and valore > 45:
                 print(f"\n[ATTENZIONE] Hai inserito {int(valore)} iterazioni.")
-                print("Con moltiplicatori alti, i numeri diventeranno astronomici.")
+                print(
+                    "Con moltiplicatori alti, i numeri diventeranno astronomici ed esploderanno."
+                )
                 conferma = input("Vuoi procedere comunque? (s/n): ").lower()
                 if conferma != "s":
                     print("Inserimento annullato. Riprova.")
@@ -40,221 +49,208 @@ def richiedi_input_numerico(messaggio, consente_avviso_passi=False):
             print("[Errore] Input non valido. Inserire solo cifre numeriche.")
 
 
-def esegui_simulazione(larghezza_ini, lunghezza_ini, moltiplicatore, passi):
+def esegui_simulazione_fourier_analog(
+    larghezza_ini, lunghezza_ini, moltiplicatore, passi
+):
     """
-    Esegue l'algoritmo iterativo raccogliendo i dati geometrici.
-    Accetta qualsiasi numero di passi definito in input dall'utente.
+    Risolve la progressione geometrica in parallelo su due motori di calcolo distinti:
+    1. IEEE 754 standard in virgola mobile (Soggetto a deriva hardware).
+    2. Decimal a 100 cifre (Riferimento asintotico a precisione infinita).
     """
     dati = []
-    larghezza = larghezza_ini
-    lunghezza = lunghezza_ini
+
+    # Inizializzazione variabili per il motore float (IEEE 754)
+    w_flt = float(larghezza_ini)
+    l_flt = float(lunghezza_ini)
+    m_flt = float(moltiplicatore)
+
+    # Inizializzazione variabili per il motore Decimal (Precisione Arbitraria)
+    w_dec = Decimal(str(larghezza_ini))
+    l_dec = Decimal(str(lunghezza_ini))
+    m_dec = Decimal(str(moltiplicatore))
 
     for n in range(1, passi + 1):
-        larghezza_corr = larghezza * moltiplicatore
-        lunghezza_corr = lunghezza * moltiplicatore
+        # Avanzamento geometrico dei registri hardware
+        w_flt *= m_flt
+        l_flt *= m_flt
+        somma_flt = w_flt + l_flt
+        area_flt = w_flt * l_flt
+        div_flt = area_flt / somma_flt if somma_flt != 0.0 else 0.0
 
-        somma = larghezza_corr + lunghezza_corr
-        area = larghezza_corr * lunghezza_corr
-        divisione = area / somma if somma != 0 else 0.0
+        # Avanzamento geometrico a precisione infinita
+        w_dec *= m_dec
+        l_dec *= m_dec
+        somma_dec = w_dec + l_dec
+        area_dec = w_dec * l_dec
+        div_dec = (
+            area_dec / somma_dec if somma_dec != Decimal("0.0") else Decimal("0.0")
+        )
+
+        # Calcolo dell'errore relativo reale causato dalla cancellazione della mantissa
+        div_dec_f = float(div_dec)
+        errore_relativo = (
+            abs(div_flt - div_dec_f) / div_dec_f if div_dec_f != 0.0 else 0.0
+        )
 
         dati.append(
             {
                 "iterazione": n,
-                "larghezza": larghezza_corr,
-                "lunghezza": lunghezza_corr,
-                "somma": somma,
-                "area": area,
-                "divisione": divisione,
+                "larghezza_flt": w_flt,
+                "lunghezza_flt": l_flt,
+                "somma_flt": somma_flt,
+                "area_flt": area_flt,
+                "divisione_flt": div_flt,
+                "errore_computazionale": errore_relativo,
             }
         )
-
-        larghezza = larghezza_corr
-        lunghezza = lunghezza_corr
 
     return dati
 
 
 def stampa_tabella_terminale(dati):
-    """Visualizza i dati calcolati in una tabella formattata a video."""
-    separatore = "-" * 90
+    """Visualizza i dati calcolati in una tabella ingegneristica standard."""
+    separatore = "-" * 115
     print(
-        f"\n{'Iterazione':<12} | {'Larghezza':<12} | {'Lunghezza':<12} | "
-        f"{'Somma':<12} | {'Area':<16} | {'Div. Area/Somma':<16}"
+        f"\n{'Iterazione':<12} | {'Larghezza (F)':<14} | {'Lunghezza (F)':<14} | "
+        f"{'Area (F)':<16} | {'Div. Area/Somma':<16} | {'Errore IEEE 754':<18}"
     )
     print(separatore)
 
     for riga in dati:
         print(
             f"{riga['iterazione']:<12} | "
-            f"{riga['larghezza']:<12.1f} | "
-            f"{riga['lunghezza']:<12.1f} | "
-            f"{riga['somma']:<12.1f} | "
-            f"{riga['area']:<16.1f} | "
-            f"{riga['divisione']:<16.4f}"
+            f"{riga['larghezza_flt']:<14.1e} | "
+            f"{riga['lunghezza_flt']:<14.1e} | "
+            f"{riga['area_flt']:<16.1e} | "
+            f"{riga['divisione_flt']:<16.4f} | "
+            f"{riga['errore_computazionale']:<18.4e}"
         )
     print(separatore)
 
 
-def esporta_file_csv(dati, nome_file="serie_moltiplicatore.csv"):
-    """Esporta i dati in un file CSV ottimizzato per Microsoft Excel Italiano."""
+def esporta_file_csv(dati, nome_file="analisi_deriva_mc84.csv"):
+    """Esporta i dati in un file CSV standard leggibile nativamente da Excel."""
     try:
         with open(nome_file, "w", encoding="utf-8") as file:
             file.write(
-                "Iterazione;Larghezza;Lunghezza;Somma;Area;Divisione Area/Somma\n"
+                "Iterazione;Larghezza;Lunghezza;Area;Divisione;Errore_Relativo_Mantissa\n"
             )
             for riga in dati:
-                l_str = str(riga["larghezza"]).replace(".", ",")
-                lu_str = str(riga["lunghezza"]).replace(".", ",")
-                s_str = str(riga["somma"]).replace(".", ",")
-                a_str = str(riga["area"]).replace(".", ",")
-                d_str = str(riga["divisione"]).replace(".", ",")
+                l_str = f"{riga['larghezza_flt']:.6e}".replace(".", ",")
+                lu_str = f"{riga['lunghezza_flt']:.6e}".replace(".", ",")
+                a_str = f"{riga['area_flt']:.6e}".replace(".", ",")
+                d_str = f"{riga['divisione_flt']:.6f}".replace(".", ",")
+                e_str = f"{riga['errore_computazionale']:.6e}".replace(".", ",")
 
                 file.write(
-                    f"{riga['iterazione']};{l_str};{lu_str};{s_str};{a_str};{d_str}\n"
+                    f"{riga['iterazione']};{l_str};{lu_str};{a_str};{d_str};{e_str}\n"
                 )
-        print(f"[INFO] File Excel salvato con successo: '{nome_file}'")
+        print(f"[INFO] Report CSV salvato correttamente su disco: '{nome_file}'")
     except OSError as e:
-        print(f"[Errore] Impossibile scrivere il file su disco: {e}")
+        print(f"[Errore] Impossibile scrivere il file di report: {e}")
 
 
-def genera_grafici(dati):
-    """Genera e mostra il pannello grafico potenziato per la massima leggibilità scientifica."""
+def genera_grafici(dati, nome_grafico="grafico_olografia_mc84.png"):
+    """Genera e salva il pannello di monitoraggio della deriva dei registri."""
     passi = [riga["iterazione"] for riga in dati]
-    aree = [riga["area"] for riga in dati]
-    divisioni = [riga["divisione"] for riga in dati]
-    tot_passi = len(passi)
+    aree = [riga["area_flt"] for riga in dati]
+    divisioni = [riga["divisione_flt"] for riga in dati]
+    errori = [riga["errore_computazionale"] for riga in dati]
 
-    # Impostazione stile grafico ad alta leggibilità
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 7))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     fig.suptitle(
-        "IL PRINCIPIO DI RISONANZA DI OLOGRAFIA BIDIMENSIONALE (Autore: Mc84)",
-        fontsize=14,
+        "ANALISI SCIENTIFICA DELLA SINGOLARITÀ GEOMETRICA E CORRUZIONE DELLA MANTISSA\n"
+        "Validazione Numerica del Principio di Risonanza Olografica - Modello Mc84 (Anno 2026)",
+        fontsize=12,
         fontweight="bold",
         color="darkblue",
         y=0.96,
     )
 
-    # --- GRAFICO 1: EVOLUZIONE ESPONENZIALE DELL'AREA ---
+    # --- GRAFICO 1: EVOLUZIONE ESPONENZIALE DELLO SPAZIO ---
     ax1.plot(
-        passi, aree, marker="o", color="crimson", linewidth=2.5, label="Area Rettangolo"
+        passi,
+        aree,
+        marker="o",
+        color="crimson",
+        linewidth=2,
+        label="Espansione Spazio Solido",
     )
     ax1.set_title(
-        "Invarianza Frattale dello Spazio Interno",
-        fontsize=11,
-        fontweight="bold",
-        pad=10,
+        "1. Crescita Esponenziale dell'Area di Confine", fontsize=10, fontweight="bold"
     )
-    ax1.set_xlabel("Iterazione (n)", fontsize=10)
-    ax1.set_ylabel("Spazio Bidimensionale (Scala Log)", fontsize=10)
+    ax1.set_xlabel("Numero di Iterazioni Complesse (n)", fontsize=9)
+    ax1.set_ylabel("Dimensione Bidimensionale (Scala Logaritmica)", fontsize=9)
     ax1.set_yscale("log")
-    ax1.grid(True, which="both", linestyle=":", alpha=0.6)
-
-    # Etichette numeriche sul grafico dell'Area (Inizio e Fine)
-    ax1.annotate(
-        f"{aree[0]:.1e}",
-        (passi[0], aree[0]),
-        textcoords="offset points",
-        xytext=(10, -5),
-        ha="left",
-        fontsize=9,
-        fontweight="bold",
-        color="darkred",
-    )
-    ax1.annotate(
-        f"{aree[-1]:.1e}",
-        (passi[-1], aree[-1]),
-        textcoords="offset points",
-        xytext=(-15, 10),
-        ha="right",
-        fontsize=9,
-        fontweight="bold",
-        color="darkred",
-    )
+    ax1.grid(True, which="both", linestyle=":", alpha=0.5)
     ax1.legend(loc="upper left")
 
-    # --- GRAFICO 2: PROGRESSIONE DEL RAPPORTO (AREA / SOMMA) ---
+    # --- GRAFICO 2: PROGRESSIONE DEL RAPPORTO E VERIFICA DERIVA ---
     ax2.plot(
         passi,
         divisioni,
         marker="s",
         color="royalblue",
-        linewidth=2.5,
-        label="Rapporto Area/Somma",
+        linewidth=2,
+        label="Rapporto Area/Perimetro (Float)",
     )
     ax2.set_title(
-        "La Singolarità Critica del Confine", fontsize=11, fontweight="bold", pad=10
+        "2. Stabilità Lineare del Rapporto Geometrico", fontsize=10, fontweight="bold"
     )
-    ax2.set_xlabel("Iterazione (n)", fontsize=10)
-    ax2.set_ylabel("Rapporto Lineare Risultante", fontsize=10)
-    ax2.grid(True, linestyle=":", alpha=0.6)
+    ax2.set_xlabel("Numero di Iterazioni Complesse (n)", fontsize=9)
+    ax2.set_ylabel("Valore Lineare Risultante", fontsize=9)
+    ax2.grid(True, linestyle=":", alpha=0.5)
 
-    # Etichette numeriche nei 3 punti di controllo strategici per la leggibilità dello Shift-2
-    # 1. Punto iniziale
-    ax2.annotate(
-        f"{divisioni[0]:.1f}",
-        (passi[0], divisioni[0]),
-        textcoords="offset points",
-        xytext=(5, 10),
-        ha="left",
+    # Iniezione del monitoraggio della deriva reale dell'hardware tramite asse secondario
+    ax3 = ax2.twinx()
+    ax3.plot(
+        passi,
+        errori,
+        color="darkorange",
+        linestyle="-.",
+        linewidth=2,
+        label="Errore di Troncamento Reale (IEEE 754)",
+    )
+    ax3.set_ylabel(
+        "Scostamento Relativo Assoluto dalla Precisione Infinita",
+        color="darkorange",
         fontsize=9,
-        fontweight="bold",
-        color="navy",
     )
+    ax3.tick_params(axis="y", labelcolor="darkorange")
 
-    # 2. Punto di rottura (se ci sono abbastanza passi, indicativamente a 3/4 della serie)
-    if tot_passi >= 25:
-        p_rottura = int(tot_passi * 0.8) - 1
-        ax2.annotate(
-            f"{divisioni[p_rottura]:.1e}",
-            (passi[p_rottura], divisioni[p_rottura]),
-            textcoords="offset points",
-            xytext=(-15, -15),
-            ha="right",
-            fontsize=9,
-            fontweight="bold",
-            color="navy",
-            arrowprops=dict(arrowstyle="->", color="blue", alpha=0.5),
-        )
+    # Unificazione delle legende dei due assi sovrapposti
+    lines1, labels1 = ax2.get_legend_handles_labels()
+    lines2, labels2 = ax3.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
 
-    # 3. Punto di picco finale
-    ax2.annotate(
-        f"{divisioni[-1]:.1e}",
-        (passi[-1], divisioni[-1]),
-        textcoords="offset points",
-        xytext=(-15, 10),
-        ha="right",
-        fontsize=9,
-        fontweight="bold",
-        color="navy",
-    )
-
-    ax2.legend(loc="upper left")
-
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
-    print("[INFO] Apertura del pannello grafico ad alta leggibilità in corso...")
-    plt.savefig("grafico_olografia_mc84.png", dpi=300, bbox_inches="tight")
+    plt.tight_layout(rect=[0, 0, 1, 0.90])
+    plt.savefig(nome_grafico, dpi=300, bbox_inches="tight")
+    print(f"[INFO] Pannello grafico esportato ad alta risoluzione: '{nome_grafico}'")
     plt.show()
 
 
 def main():
     """Funzione pilota dell'intero flusso del programma."""
     pulisci_schermo()
-    print("=" * 65)
-    print("   LABORATORIO COMPUTAZIONALE DI OLOGRAFIA GEOMETRICA (Mc84)   ")
-    print("=" * 65)
+    print("=" * 75)
+    print("   LABORATORIO COMPUTAZIONALE DI OLOGRAFIA GEOMETRICA E DERIVA IEEE 754   ")
+    print("   Modello di Analisi d'Invenzione Scientifica Convalidata: Mc84        ")
+    print("=" * 75)
 
     larg_iniziale = richiedi_input_numerico("Inserisci la larghezza iniziale (es. 2): ")
     lung_iniziale = richiedi_input_numerico("Inserisci la lunghezza iniziale (es. 3): ")
-    moltiplicatore = richiedi_input_numerico("Inserisci il moltiplicatore (es. 5): ")
+    moltiplicatore = richiedi_input_numerico(
+        "Inserisci il moltiplicatore geometrico (es. 5): "
+    )
 
     iterazioni = int(
         richiedi_input_numerico(
-            "Inserisci il numero di iterazioni desiderate (es. 30): ",
+            "Inserisci il numero di passi della serie (Consigliato 20-40): ",
             consente_avviso_passi=True,
         )
     )
 
-    risultati = esegui_simulazione(
+    risultati = esegui_simulazione_fourier_analog(
         larg_iniziale, lung_iniziale, moltiplicatore, iterazioni
     )
 
